@@ -5,8 +5,8 @@ import StoreKit
 @MainActor
 @Observable
 final class Store {
-    static let monthlyID = "com.cleanupphotos.app.premium.monthly"
-    static let yearlyID = "com.cleanupphotos.app.premium.yearly"
+    static let monthlyID = "com.cleanupphotos.app.shotfile.monthly"
+    static let yearlyID = "com.cleanupphotos.app.shotfile.yearly"
     static let productIDs: Set<String> = [monthlyID, yearlyID]
 
     private(set) var products: [Product] = []
