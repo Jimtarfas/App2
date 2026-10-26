@@ -2,7 +2,7 @@
   --bg: #ffffff;
   --text: #15192b;
   --muted: #5f6578;
-  --accent: #2563eb;
+  --accent: #0f766e;
   --card: #f3f6fb;
 }
 
@@ -11,7 +11,7 @@
     --bg: #0d1220;
     --text: #e8ecf5;
     --muted: #a2a9bb;
-    --accent: #5b8cff;
+    --accent: #2dd4bf;
     --card: #161d30;
   }
 }

@@ -96,7 +96,8 @@ struct HomeView: View {
         .refreshable { cleaner.scan() }
     }
 
-    /// Debug builds only: `-route expired` (or a category, duplicates, similar, live, videos, swipe, settings, paywall, search:<text>) opens that screen at launch.
+    /// Debug builds only: `-route expired` (or a category, duplicates, similar, live, videos, swipe, settings, paywall, search:<text>,
+    /// open:<word>, shot:<category>) opens that screen at launch.
     private func openDebugRoute() {
         #if DEBUG
         guard let route = UserDefaults.standard.string(forKey: "route") else { return }
@@ -112,7 +113,13 @@ struct HomeView: View {
         case "settings": path = [.settings]
         case "paywall": paywall = PaywallRequest()
         default:
-            if route.hasPrefix("shot:"), let kind = ShotKind(rawValue: String(route.dropFirst(5))) {
+            if route.hasPrefix("open:") {
+                // Opens the first screenshot containing a word once the text is read.
+                Task {
+                    while !cleaner.textReady { try? await Task.sleep(for: .milliseconds(300)) }
+                    if let first = cleaner.search(String(route.dropFirst(5))).first { path = [.shot(first.id)] }
+                }
+            } else if route.hasPrefix("shot:"), let kind = ShotKind(rawValue: String(route.dropFirst(5))) {
                 // Opens the first screenshot of a kind once the text is read.
                 Task {
                     while !cleaner.textReady { try? await Task.sleep(for: .milliseconds(300)) }

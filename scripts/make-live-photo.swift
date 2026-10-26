@@ -13,11 +13,10 @@ let identifier = UUID().uuidString
 try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
 
 // Still: the Apple maker note's key 17 carries the identifier that links it to the video.
-let source = CGImageSourceCreateWithURL(input as CFURL, nil)!
-let full = CGImageSourceCreateImageAtIndex(source, 0, nil)!
+let upright = CIImage(contentsOf: input, options: [.applyOrientationProperty: true])!
 let longSide: CGFloat = 3024
-let scale = longSide / CGFloat(max(full.width, full.height))
-let ci = CIImage(cgImage: full).transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+let scale = longSide / max(upright.extent.width, upright.extent.height)
+let ci = upright.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 let still = CIContext().createCGImage(ci, from: ci.extent)!
 let jpegURL = outDir.appendingPathComponent(name + ".JPG")
 let destination = CGImageDestinationCreateWithURL(jpegURL as CFURL, "public.jpeg" as CFString, 1, nil)!

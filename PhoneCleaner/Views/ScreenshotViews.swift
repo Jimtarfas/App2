@@ -189,6 +189,7 @@ struct ShotDetailView: View {
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
+                VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     if let kind = info?.kind {
                         Label(kind.title, systemImage: kind.symbol)
@@ -204,11 +205,11 @@ struct ShotDetailView: View {
                             .background(Theme.expired.opacity(0.15), in: Capsule())
                             .foregroundStyle(Theme.expired)
                     }
-                    Spacer()
-                    Text([item.asset.creationDate?.formatted(date: .abbreviated, time: .shortened), item.bytes.formattedBytes]
-                        .compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                }
+                Text([item.asset.creationDate?.formatted(date: .abbreviated, time: .shortened), item.bytes.formattedBytes]
+                    .compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -272,9 +273,10 @@ struct ShotSearchResults: View {
                 List(results) { item in
                     NavigationLink(value: Destination.shot(item.id)) {
                         HStack(spacing: 12) {
-                            AssetImage(asset: item.asset, side: 120)
-                                .frame(width: 54, height: 96)
+                            AssetImage(asset: item.asset, side: 200, fit: true)
+                                .frame(width: 66, height: 128)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(snippet(cleaner.text(of: item) ?? ""))
                                     .font(.subheadline)

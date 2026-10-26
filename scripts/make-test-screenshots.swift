@@ -264,3 +264,49 @@ do {
         .draw(in: NSRect(x: 0, y: 500, width: W, height: 1500), angle: 60)
     c.save("image-wallpaper", taken: "2026:04:18 10:00:00")
 }
+
+// More of the everyday kinds, so lists look like a real library.
+for (index, (sender, body, taken)) in [
+    ("Parcelpoint", "Your parcel locker code is 6620 41. Collect by Friday at the Station Street locker.", "2026:10:21 15:02:00"),
+    ("Kitewing", "Kitewing: 993 104 is your login code. It expires in 5 minutes.", "2026:09:02 07:45:00"),
+    ("Doctor Office", "Your appointment security code is 4417. Show it at reception.", "2026:08:11 10:20:00"),
+].enumerated() {
+    messageThread("code-extra-\(index)", sender: sender, messages: [(body, false)], taken: taken)
+}
+for (index, (shop, lines, total, taken)) in [
+    ("Greenline Market", [("Oat milk 1 L", "€2.19"), ("Sourdough loaf", "€3.40"), ("Tomatoes 500 g", "€2.85")], "€8.44", "2026:10:11 18:31:00"),
+    ("Northwind Books", [("The Quiet Coast (paperback)", "$16.00"), ("Gift wrap", "$3.00")], "$19.00", "2026:09:24 13:05:00"),
+    ("Pixel Repair", [("Battery replacement", "$69.00"), ("Labor", "$20.00")], "$89.00", "2026:07:30 16:44:00"),
+].enumerated() {
+    let c = Canvas(background: .white)
+    c.text(shop, size: 70, weight: .bold, x: 0, width: W, align: .center)
+    c.text("Receipt · Order #\(70120 + index * 37)", size: 40, color: gray, x: 0, width: W, align: .center)
+    c.gap(90)
+    for (item, price) in lines {
+        c.text(item, size: 48, x: 90, top: c.y, width: 700); c.text(price, size: 48, x: W - 330, top: c.y, width: 260, align: .right); c.gap(90)
+    }
+    c.gap(30)
+    c.text("Total", size: 54, weight: .bold, x: 90, top: c.y, width: 600)
+    c.text(total, size: 54, weight: .bold, x: W - 330, top: c.y, width: 260, align: .right)
+    c.gap(110)
+    c.text("Paid with card · Thank you for shopping", size: 42, color: gray, x: 90)
+    c.save("receipt-extra-\(index)", taken: taken)
+}
+messageThread("chat-mom", sender: "Mom", messages: [
+    ("Did you land ok?", false), ("Yes! Just got my bag", true), ("Call me when you're at the hotel ❤️", false), ("Will do", true),
+], taken: "2026:09:14 11:02:00")
+messageThread("chat-work", sender: "Priya", messages: [
+    ("Can you send the slides before 3?", false), ("On it, 10 more minutes", true), ("Thanks!! 🙏", false),
+], taken: "2026:10:08 14:20:00")
+do {
+    let c = Canvas(background: .white)
+    c.text("@coastal.eats", size: 48, weight: .semibold, x: 170)
+    c.box(x: 0, top: 330, width: W, height: 1180, color: NSColor(red: 0.30, green: 0.55, blue: 0.45, alpha: 1), radius: 0)
+    c.text("Best tacos in town 🌮", size: 84, weight: .heavy, color: .white, x: 0, top: 820, width: W, align: .center)
+    c.y = 1560
+    c.text("Liked by 2,041 others", size: 46, weight: .semibold)
+    c.text("coastal.eats Open until midnight on weekends. Menu: coastaleats.example/menu", size: 46)
+    c.text("View all 132 comments", size: 44, color: gray)
+    c.save("social-tacos", taken: "2026:07:19 20:15:00")
+}
+ticket("ticket-train", title: "Riverline Rail · Coach 6", when: "Fri, Oct 9, 2026 · 07:52", seat: "Platform 3 · Seat 41A", taken: "2026:10:08 21:00:00")

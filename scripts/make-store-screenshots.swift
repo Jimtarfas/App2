@@ -1,17 +1,17 @@
 // Renders framed App Store screenshots (no alpha) at 6.9" (1320×2868) and 6.5" (1284×2778).
-// Usage: swift scripts/make-store-screenshots.swift marketing/screenshots/raw marketing/screenshots
+// Usage: swift scripts/make-store-screenshots.swift marketing/screenshots/raw2 marketing/screenshots
 import AppKit
 
 let rawDir = CommandLine.arguments[1], outDir = CommandLine.arguments[2]
 
 // Raw simulator capture, published file name, headline, subheadline — in store order.
 let shots = [
-    ("01-home", "01-free-up-storage", "Free Up Photo Storage", "See what's filling up your iPhone"),
-    ("02-duplicates", "02-duplicates", "Delete Duplicate Photos", "Keep the best copy, clear the rest"),
-    ("03-swipe", "03-swipe", "Swipe to Keep or Delete", "Clean up one photo at a time"),
-    ("04-similar", "04-similar", "Clear Similar Shots", "Bursts and near-identical photos, grouped"),
-    ("05-videos", "05-large-videos", "Find Large Videos", "Your biggest videos, sorted by size"),
-    ("06-result", "06-space-freed", "See the Space You Free", "Every cleanup is measured"),
+    ("01-search-order", "01-search-by-text", "Find Screenshots by Text", "Search any word you remember"),
+    ("02-home", "02-sorted", "Every Screenshot, Sorted", "Codes, tickets, receipts and chats"),
+    ("03-expired", "03-out-of-date", "Clear What's Out of Date", "Old codes and past tickets, found for you"),
+    ("04-open-BOARDING", "04-copy-text", "Copy Text From Screenshots", "Booking codes, addresses, order numbers"),
+    ("05-live", "05-live-photos", "Live Photos to Stills", "Keep the photo, drop the motion"),
+    ("06-swipe", "06-swipe-review", "Swipe Through Screenshots", "Left to delete, right to keep"),
 ]
 let sizes = [("6.9", 1320, 2868), ("6.5", 1284, 2778)]
 
@@ -38,8 +38,8 @@ func render(raw: NSImage, headline: String, subheadline: String, width: Int, hei
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
 
-    NSGradient(colors: [NSColor(red: 0.11, green: 0.30, blue: 0.86, alpha: 1),
-                        NSColor(red: 0.02, green: 0.66, blue: 0.80, alpha: 1)])!.draw(in: NSRect(x: 0, y: 0, width: W, height: H), angle: -65)
+    NSGradient(colors: [NSColor(red: 0.04, green: 0.33, blue: 0.31, alpha: 1),
+                        NSColor(red: 0.08, green: 0.62, blue: 0.55, alpha: 1)])!.draw(in: NSRect(x: 0, y: 0, width: W, height: H), angle: -65)
 
     let titleRect = NSRect(x: 70 * scale, y: H - 440 * scale, width: W - 140 * scale, height: 300 * scale)
     fitted(headline, weight: .heavy, maxSize: 112 * scale, minSize: 72 * scale, width: titleRect.width, height: titleRect.height, color: .white)
