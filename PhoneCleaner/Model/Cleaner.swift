@@ -3,7 +3,7 @@ import Photos
 import PhotosUI
 import UIKit
 
-/// The photo library as the app sees it: access, scan results, and deletions.
+/// The photo library as the app sees it: access, what the scans found, and the changes the person makes.
 @MainActor
 @Observable
 final class Cleaner {
@@ -15,44 +15,79 @@ final class Cleaner {
     }
 
     private(set) var authorization = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    /// Reading the text in screenshots.
+    private(set) var textState = ScanState.idle
+    /// Looking for duplicate and similar photos.
     private(set) var scanState = ScanState.idle
+    private(set) var screenshots: [MediaItem] = []
+    private(set) var shotInfo: [String: ShotInfo] = [:]
     private(set) var duplicates: [MediaGroup] = []
     private(set) var similar: [MediaGroup] = []
-    private(set) var screenshots: [MediaItem] = []
+    /// Live Photos; `bytes` is the space converting each one to a still would save.
+    private(set) var livePhotos: [MediaItem] = []
     private(set) var largeVideos: [MediaItem] = []
     private(set) var photoCount = 0
     private(set) var videoCount = 0
     private(set) var storage = DeviceStorage.current()
     private(set) var freedBytes: Int64
     private(set) var freedItems: Int
-    private(set) var freeDeletesLeft: Int
+    private(set) var freeActionsLeft: Int
+    private(set) var keptIDs: Set<String>
 
-    /// Free plan: this many deletions per calendar day.
-    static let freeDeletesPerDay = 20
+    /// Free plan: this many deletions or conversions per calendar day.
+    static let freeActionsPerDay = 20
     /// Videos at least this big show up under Large Videos.
     static let largeVideoBytes: Int64 = 10_000_000
 
-    private let cache = FingerprintCache()
+    private let fingerprints = PersistentCache<Fingerprint>(name: "fingerprints-v2")
+    private let texts = PersistentCache<ShotInfo>(name: "screenshot-text-v1")
     private var scanTask: Task<Void, Never>?
     private let defaults = UserDefaults.standard
 
     init() {
         freedBytes = Int64(defaults.integer(forKey: "freedBytes"))
         freedItems = defaults.integer(forKey: "freedItems")
-        freeDeletesLeft = Self.freeDeletesPerDay
+        freeActionsLeft = Self.freeActionsPerDay
+        keptIDs = KeptPhotos.shared.ids
         refreshAllowance()
     }
 
     var hasAccess: Bool { authorization == .authorized || authorization == .limited }
     var isLimited: Bool { authorization == .limited }
-    var isScanning: Bool {
-        switch scanState {
-        case .listing, .analyzing: true
-        default: false
+    var listsReady: Bool { scanState != .idle && scanState != .listing }
+    var textReady: Bool { textState == .finished }
+    var groupsReady: Bool { scanState == .finished }
+
+    // MARK: Screenshots
+
+    func shots(_ kind: ShotKind) -> [MediaItem] {
+        screenshots.filter { shotInfo[$0.id]?.kind == kind }
+    }
+
+    /// One-time codes and past tickets the person hasn't chosen to keep.
+    var expiredShots: [MediaItem] {
+        screenshots.filter { item in
+            guard !keptIDs.contains(item.id), let info = shotInfo[item.id] else { return false }
+            return ScreenshotAnalyzer.isExpired(info, created: item.asset.creationDate)
         }
     }
-    var listsReady: Bool { scanState != .idle && scanState != .listing }
-    var groupsReady: Bool { scanState == .finished }
+
+    func text(of item: MediaItem) -> String? { shotInfo[item.id]?.text }
+
+    /// Screenshots whose text contains every word of the query, ignoring case and accents.
+    func search(_ query: String) -> [MediaItem] {
+        let terms = query.split(separator: " ").map(String.init).filter { !$0.isEmpty }
+        guard !terms.isEmpty else { return [] }
+        return screenshots.filter { item in
+            guard let text = shotInfo[item.id]?.text else { return false }
+            return terms.allSatisfy { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        }
+    }
+
+    func keep(_ item: MediaItem) {
+        KeptPhotos.shared.insert(item.id)
+        keptIDs.insert(item.id)
+    }
 
     // MARK: Access
 
@@ -68,6 +103,7 @@ final class Cleaner {
         authorization = status
         storage = .current()
         refreshAllowance()
+        keptIDs = KeptPhotos.shared.ids
         if hasAccess && (changed || scanState == .idle) { scan() }
     }
 
@@ -90,19 +126,36 @@ final class Cleaner {
 
     private func runScan() async {
         scanState = .listing
-        let cache = self.cache
+        textState = .listing
+        let fingerprints = self.fingerprints
+        let texts = self.texts
         let library = await Task.detached(priority: .userInitiated) { LibrarySnapshot.load() }.value
         guard !Task.isCancelled else { return }
 
         photoCount = library.photos.count + library.screenshots.count
         videoCount = library.videos.count
         screenshots = library.screenshots
+        livePhotos = library.livePhotos
         largeVideos = library.videos.filter { $0.bytes >= Self.largeVideoBytes }
         storage = .current()
 
+        // Screenshots first: reading them is what the app is for.
+        let shotAssets = library.screenshots.map(\.asset)
+        textState = .analyzing(done: 0, total: shotAssets.count)
+        let info = await ScreenshotAnalyzer.analyze(shotAssets, cache: texts) { done in
+            Task { @MainActor [weak self] in
+                guard let self, case .analyzing(let current, let total) = self.textState, done > current else { return }
+                self.textState = .analyzing(done: done, total: total)
+            }
+        }
+        guard !Task.isCancelled else { return }
+        shotInfo = info
+        textState = .finished
+        Task.detached(priority: .utility) { texts.save(keeping: Set(shotAssets.map(\.localIdentifier))) }
+
         let photos = library.photos
         scanState = .analyzing(done: 0, total: photos.count)
-        let prints = await SimilarityScanner.fingerprints(for: photos, cache: cache) { done in
+        let prints = await SimilarityScanner.fingerprints(for: photos, cache: fingerprints) { done in
             Task { @MainActor [weak self] in
                 guard let self, case .analyzing(let current, let total) = self.scanState, done > current else { return }
                 self.scanState = .analyzing(done: done, total: total)
@@ -118,7 +171,7 @@ final class Cleaner {
                 let ids = Set(set.map(\.localIdentifier))
                 return !duplicateIDs.contains { ids.isSubset(of: $0) }
             }
-            cache.save(keeping: Set(photos.map(\.localIdentifier)))
+            fingerprints.save(keeping: Set(photos.map(\.localIdentifier)))
             return (Self.mediaGroups(duplicateSets), Self.mediaGroups(similarSets))
         }.value
         guard !Task.isCancelled else { return }
@@ -136,12 +189,12 @@ final class Cleaner {
         .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
-    // MARK: Deleting
+    // MARK: Changing the library
 
-    /// Whether the free plan still covers deleting `count` items today.
+    /// Whether the free plan still covers `count` more deletions or conversions today.
     func freePlanAllows(_ count: Int) -> Bool {
         refreshAllowance()
-        return count <= freeDeletesLeft
+        return count <= freeActionsLeft
     }
 
     /// Asks Photos to delete the items. Photos shows its own confirmation, and deleted items stay in Recently Deleted for 30 days.
@@ -153,19 +206,45 @@ final class Cleaner {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets)
             }
-        } catch let error as NSError where error.domain == PHPhotosErrorDomain && error.code == PHPhotosError.Code.userCancelled.rawValue {
+        } catch let error as NSError where Self.isCancellation(error) {
             return nil
         }
-
         let bytes = items.totalBytes
         remove(Set(items.map(\.id)))
+        record(bytes: bytes, items: items.count, countsAgainstFreePlan: countsAgainstFreePlan)
+        return bytes
+    }
+
+    /// Replaces Live Photos with still photos. Returns the bytes saved, or nil if the person cancelled.
+    func convertToStills(_ items: [MediaItem], countsAgainstFreePlan: Bool) async throws -> Int64? {
+        guard !items.isEmpty else { return 0 }
+        let prepared = try await LivePhotoConverter.prepare(items.map(\.asset))
+        defer { LivePhotoConverter.cleanUp(prepared) }
+        do {
+            try await LivePhotoConverter.commit(prepared)
+        } catch let error as NSError where Self.isCancellation(error) {
+            return nil
+        }
+        let converted = Set(prepared.map(\.original.localIdentifier))
+        let bytes = items.filter { converted.contains($0.id) }.totalBytes
+        livePhotos.removeAll { converted.contains($0.id) }
+        record(bytes: bytes, items: 0, countsAgainstFreePlan: countsAgainstFreePlan, actions: converted.count)
+        // The stills are new photos; pick them up for duplicate checks.
+        scan()
+        return bytes
+    }
+
+    private static func isCancellation(_ error: NSError) -> Bool {
+        error.domain == PHPhotosErrorDomain && error.code == PHPhotosError.Code.userCancelled.rawValue
+    }
+
+    private func record(bytes: Int64, items: Int, countsAgainstFreePlan: Bool, actions: Int? = nil) {
         freedBytes += bytes
-        freedItems += items.count
+        freedItems += items
         defaults.set(Int(freedBytes), forKey: "freedBytes")
         defaults.set(freedItems, forKey: "freedItems")
-        if countsAgainstFreePlan { useFreeDeletes(items.count) }
+        if countsAgainstFreePlan { useFreeActions(actions ?? items) }
         storage = .current()
-        return bytes
     }
 
     private func remove(_ ids: Set<String>) {
@@ -179,6 +258,7 @@ final class Cleaner {
         duplicates = prune(duplicates)
         similar = prune(similar)
         screenshots.removeAll { ids.contains($0.id) }
+        livePhotos.removeAll { ids.contains($0.id) }
         largeVideos.removeAll { ids.contains($0.id) }
         photoCount = PHAsset.fetchAssets(with: .image, options: nil).count
         videoCount = PHAsset.fetchAssets(with: .video, options: nil).count
@@ -193,10 +273,10 @@ final class Cleaner {
 
     private func refreshAllowance() {
         let used = defaults.string(forKey: "freeDeletesDay") == today ? defaults.integer(forKey: "freeDeletesUsed") : 0
-        freeDeletesLeft = max(Self.freeDeletesPerDay - used, 0)
+        freeActionsLeft = max(Self.freeActionsPerDay - used, 0)
     }
 
-    private func useFreeDeletes(_ count: Int) {
+    private func useFreeActions(_ count: Int) {
         let used = defaults.string(forKey: "freeDeletesDay") == today ? defaults.integer(forKey: "freeDeletesUsed") : 0
         defaults.set(today, forKey: "freeDeletesDay")
         defaults.set(used + count, forKey: "freeDeletesUsed")
@@ -208,6 +288,7 @@ final class Cleaner {
 private struct LibrarySnapshot {
     var photos: [PHAsset] = []
     var screenshots: [MediaItem] = []
+    var livePhotos: [MediaItem] = []
     var videos: [MediaItem] = []
 
     static func load() -> LibrarySnapshot {
@@ -218,11 +299,16 @@ private struct LibrarySnapshot {
         PHAsset.fetchAssets(with: .image, options: oldestFirst).enumerateObjects { asset, _, _ in
             if asset.mediaSubtypes.contains(.photoScreenshot) {
                 snapshot.screenshots.append(MediaItem(asset: asset, bytes: AssetSize.bytes(of: asset)))
-            } else {
-                snapshot.photos.append(asset)
+                return
+            }
+            snapshot.photos.append(asset)
+            if asset.mediaSubtypes.contains(.photoLive) {
+                let saving = LivePhotoConverter.videoBytes(of: asset)
+                if saving > 0 { snapshot.livePhotos.append(MediaItem(asset: asset, bytes: saving)) }
             }
         }
         snapshot.screenshots.reverse()
+        snapshot.livePhotos.reverse()
 
         PHAsset.fetchAssets(with: .video, options: oldestFirst).enumerateObjects { asset, _, _ in
             snapshot.videos.append(MediaItem(asset: asset, bytes: AssetSize.bytes(of: asset)))

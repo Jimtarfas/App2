@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Phone Cleaner</string>
+	<string>Shotfile</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -23,9 +23,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.utilities</string>
+	<string>public.app-category.productivity</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Phone Cleaner looks through the photos and videos on your iPhone to find duplicates, similar shots, screenshots and large videos you may want to delete. The scan runs on your device and nothing is uploaded.</string>
+	<string>Shotfile reads the text in your screenshots to sort them and make them searchable, and looks through your photos to find duplicates and Live Photos you can turn into stills. Everything happens on your iPhone and nothing is uploaded.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

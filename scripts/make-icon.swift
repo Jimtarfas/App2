@@ -1,4 +1,4 @@
-// Draws the 1024×1024 app icon (no alpha): two stacked photo cards with a sparkle on a blue-to-cyan gradient.
+// Draws the 1024×1024 Shotfile app icon (no alpha): a screenshot card with lines of text under a magnifier, on teal.
 // Usage: swift scripts/make-icon.swift PhoneCleaner/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
 import AppKit
 
@@ -8,83 +8,74 @@ let context = CGContext(data: nil, width: side, height: side, bitsPerComponent: 
                         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
 NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
 
-let canvas = NSRect(x: 0, y: 0, width: side, height: side)
-NSGradient(colors: [NSColor(red: 0.13, green: 0.33, blue: 0.90, alpha: 1),
-                    NSColor(red: 0.02, green: 0.70, blue: 0.84, alpha: 1)])!.draw(in: canvas, angle: 50)
+let teal = NSColor(red: 0.06, green: 0.46, blue: 0.43, alpha: 1)
+NSGradient(colors: [NSColor(red: 0.04, green: 0.36, blue: 0.34, alpha: 1), NSColor(red: 0.10, green: 0.70, blue: 0.62, alpha: 1)])!
+    .draw(in: NSRect(x: 0, y: 0, width: side, height: side), angle: 60)
 
-func card(_ rect: NSRect, angle: CGFloat, fill: NSColor, shadow: Bool) {
+func shadowed(_ draw: () -> Void) {
     NSGraphicsContext.saveGraphicsState()
-    let transform = NSAffineTransform()
-    transform.translateX(by: rect.midX, yBy: rect.midY)
-    transform.rotate(byDegrees: angle)
-    transform.translateX(by: -rect.midX, yBy: -rect.midY)
-    transform.concat()
-    if shadow {
-        let s = NSShadow()
-        s.shadowColor = NSColor(white: 0, alpha: 0.28)
-        s.shadowBlurRadius = 40
-        s.shadowOffset = NSSize(width: 0, height: -18)
-        s.set()
-    }
-    fill.setFill()
-    NSBezierPath(roundedRect: rect, xRadius: 64, yRadius: 64).fill()
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor(white: 0, alpha: 0.3)
+    shadow.shadowBlurRadius = 44
+    shadow.shadowOffset = NSSize(width: 0, height: -20)
+    shadow.set()
+    draw()
     NSGraphicsContext.restoreGraphicsState()
 }
 
-// Back card, tilted.
-card(NSRect(x: 250, y: 250, width: 470, height: 470), angle: 12, fill: NSColor(white: 1, alpha: 0.45), shadow: false)
-// Front card.
-let front = NSRect(x: 290, y: 215, width: 470, height: 470)
-card(front, angle: -6, fill: .white, shadow: true)
+// A second screenshot peeking out behind.
+NSColor(white: 1, alpha: 0.35).setFill()
+NSBezierPath(roundedRect: NSRect(x: 330, y: 200, width: 360, height: 640), xRadius: 56, yRadius: 56).fill()
 
-// Landscape inside the front card.
+// The front screenshot, tilted slightly.
+let card = NSRect(x: 230, y: 150, width: 380, height: 690)
 NSGraphicsContext.saveGraphicsState()
-let transform = NSAffineTransform()
-transform.translateX(by: front.midX, yBy: front.midY)
-transform.rotate(byDegrees: -6)
-transform.translateX(by: -front.midX, yBy: -front.midY)
-transform.concat()
-let inner = front.insetBy(dx: 44, dy: 44)
-NSBezierPath(roundedRect: inner, xRadius: 34, yRadius: 34).addClip()
-NSColor(red: 0.86, green: 0.94, blue: 1.0, alpha: 1).setFill()
-inner.fill()
-let mountains = NSBezierPath()
-mountains.move(to: NSPoint(x: inner.minX, y: inner.minY))
-mountains.line(to: NSPoint(x: inner.minX, y: inner.minY + 120))
-mountains.line(to: NSPoint(x: inner.minX + 130, y: inner.minY + 250))
-mountains.line(to: NSPoint(x: inner.minX + 230, y: inner.minY + 150))
-mountains.line(to: NSPoint(x: inner.minX + 290, y: inner.minY + 205))
-mountains.line(to: NSPoint(x: inner.maxX, y: inner.minY + 60))
-mountains.line(to: NSPoint(x: inner.maxX, y: inner.minY))
-mountains.close()
-NSColor(red: 0.13, green: 0.40, blue: 0.92, alpha: 1).setFill()
-mountains.fill()
-NSColor(red: 1.0, green: 0.76, blue: 0.20, alpha: 1).setFill()
-NSBezierPath(ovalIn: NSRect(x: inner.maxX - 130, y: inner.maxY - 130, width: 80, height: 80)).fill()
+let tilt = NSAffineTransform()
+tilt.translateX(by: card.midX, yBy: card.midY)
+tilt.rotate(byDegrees: 7)
+tilt.translateX(by: -card.midX, yBy: -card.midY)
+tilt.concat()
+shadowed {
+    NSColor.white.setFill()
+    NSBezierPath(roundedRect: card, xRadius: 58, yRadius: 58).fill()
+}
+// Lines of text on the screenshot.
+let lineColor = NSColor(red: 0.78, green: 0.85, blue: 0.84, alpha: 1)
+NSColor(red: 0.06, green: 0.46, blue: 0.43, alpha: 1).setFill()
+NSBezierPath(roundedRect: NSRect(x: card.minX + 52, y: card.maxY - 140, width: 200, height: 38), xRadius: 19, yRadius: 19).fill()
+for (i, width) in [270.0, 230, 260, 180, 250, 210].enumerated() {
+    lineColor.setFill()
+    NSBezierPath(roundedRect: NSRect(x: card.minX + 52, y: card.maxY - 230 - CGFloat(i) * 70, width: width, height: 30), xRadius: 15, yRadius: 15).fill()
+}
 NSGraphicsContext.restoreGraphicsState()
 
-// Sparkle.
-func sparkle(center: NSPoint, radius: CGFloat) {
-    let path = NSBezierPath()
-    let waist = radius * 0.22
-    for i in 0..<8 {
-        let angle = CGFloat(i) * .pi / 4 + .pi / 2
-        let r = i.isMultiple(of: 2) ? radius : waist
-        let point = NSPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
-        i == 0 ? path.move(to: point) : path.line(to: point)
-    }
-    path.close()
-    NSColor.white.setFill()
-    let s = NSShadow()
-    s.shadowColor = NSColor(white: 0, alpha: 0.2)
-    s.shadowBlurRadius = 20
-    NSGraphicsContext.saveGraphicsState()
-    s.set()
-    path.fill()
-    NSGraphicsContext.restoreGraphicsState()
+// Magnifier over the lower right.
+let lensCenter = NSPoint(x: 640, y: 430)
+let lensRadius: CGFloat = 165
+shadowed {
+    let handle = NSBezierPath()
+    handle.move(to: NSPoint(x: lensCenter.x + lensRadius * 0.72, y: lensCenter.y - lensRadius * 0.72))
+    handle.line(to: NSPoint(x: lensCenter.x + lensRadius * 1.55, y: lensCenter.y - lensRadius * 1.55))
+    handle.lineWidth = 78
+    handle.lineCapStyle = .round
+    NSColor(red: 1.0, green: 0.72, blue: 0.20, alpha: 1).setStroke()
+    handle.stroke()
 }
-sparkle(center: NSPoint(x: 770, y: 760), radius: 120)
-sparkle(center: NSPoint(x: 880, y: 600), radius: 52)
+let lens = NSBezierPath(ovalIn: NSRect(x: lensCenter.x - lensRadius, y: lensCenter.y - lensRadius, width: lensRadius * 2, height: lensRadius * 2))
+NSColor(white: 1, alpha: 0.88).setFill()
+lens.fill()
+// Magnified lines of text, with the found word highlighted.
+lineColor.setFill()
+NSBezierPath(roundedRect: NSRect(x: lensCenter.x - 110, y: lensCenter.y + 50, width: 190, height: 30), xRadius: 15, yRadius: 15).fill()
+NSBezierPath(roundedRect: NSRect(x: lensCenter.x - 110, y: lensCenter.y - 80, width: 150, height: 30), xRadius: 15, yRadius: 15).fill()
+NSColor(red: 1.0, green: 0.80, blue: 0.30, alpha: 1).setFill()
+NSBezierPath(roundedRect: NSRect(x: lensCenter.x - 122, y: lensCenter.y - 24, width: 244, height: 50), xRadius: 14, yRadius: 14).fill()
+teal.setFill()
+NSBezierPath(roundedRect: NSRect(x: lensCenter.x - 100, y: lensCenter.y - 11, width: 120, height: 24), xRadius: 12, yRadius: 12).fill()
+NSBezierPath(roundedRect: NSRect(x: lensCenter.x + 32, y: lensCenter.y - 11, width: 68, height: 24), xRadius: 12, yRadius: 12).fill()
+lens.lineWidth = 34
+NSColor(red: 1.0, green: 0.72, blue: 0.20, alpha: 1).setStroke()
+lens.stroke()
 
 let destination = CGImageDestinationCreateWithURL(output as CFURL, "public.png" as CFString, 1, nil)!
 CGImageDestinationAddImage(destination, context.makeImage()!, nil)

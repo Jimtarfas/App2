@@ -2,8 +2,8 @@ import Photos
 import SwiftUI
 
 enum Links {
-    static let privacy = URL(string: "https://jimtarfas.github.io/phone-cleaner-site/privacy.html")!
-    static let support = URL(string: "https://jimtarfas.github.io/phone-cleaner-site/support.html")!
+    static let privacy = URL(string: "https://jimtarfas.github.io/shotfile-site/privacy.html")!
+    static let support = URL(string: "https://jimtarfas.github.io/shotfile-site/support.html")!
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
     static let settings = URL(string: UIApplication.openSettingsURLString)!
     static let appStoreID = "6826949859"
@@ -11,10 +11,26 @@ enum Links {
 }
 
 enum Theme {
-    static let gradient = LinearGradient(colors: [Color(red: 0.15, green: 0.39, blue: 0.92), Color(red: 0.02, green: 0.71, blue: 0.83)],
+    static let gradient = LinearGradient(colors: [Color(red: 0.06, green: 0.46, blue: 0.43), Color(red: 0.08, green: 0.72, blue: 0.65)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing)
     static let keep = Color.green
     static let delete = Color.red
+    static let expired = Color.orange
+}
+
+extension ShotKind {
+    var tint: Color {
+        switch self {
+        case .codes: .orange
+        case .tickets: .pink
+        case .receipts: .green
+        case .chats: .blue
+        case .places: .indigo
+        case .links: .purple
+        case .notes: .brown
+        case .pictures: .gray
+        }
+    }
 }
 
 extension Font {

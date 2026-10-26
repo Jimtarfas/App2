@@ -1,13 +1,13 @@
 import Observation
 import StoreKit
 
-/// Phone Cleaner Premium: one auto-renewable subscription group with a weekly and a yearly plan.
+/// Shotfile Premium: one auto-renewable subscription group with a monthly and a yearly plan.
 @MainActor
 @Observable
 final class Store {
-    static let weeklyID = "com.cleanupphotos.app.premium.weekly"
+    static let monthlyID = "com.cleanupphotos.app.premium.monthly"
     static let yearlyID = "com.cleanupphotos.app.premium.yearly"
-    static let productIDs: Set<String> = [weeklyID, yearlyID]
+    static let productIDs: Set<String> = [monthlyID, yearlyID]
 
     private(set) var products: [Product] = []
     private(set) var isPremium = false
@@ -30,7 +30,7 @@ final class Store {
         }
     }
 
-    var weekly: Product? { products.first { $0.id == Self.weeklyID } }
+    var monthly: Product? { products.first { $0.id == Self.monthlyID } }
     var yearly: Product? { products.first { $0.id == Self.yearlyID } }
 
     func loadProducts() async {
@@ -128,17 +128,17 @@ extension Product {
         return offer.period.name.first?.isNumber == true ? offer.period.name : "1 \(offer.period.name)"
     }
 
-    /// The price spread over one week, for comparing plans.
-    var weeklyEquivalent: Decimal? {
+    /// The price spread over one month, for comparing plans.
+    var monthlyEquivalent: Decimal? {
         guard let period = subscription?.subscriptionPeriod else { return nil }
         let (value, unit) = period.normalized
-        let weeks: Decimal = switch unit {
-        case .day: Decimal(value) / 7
-        case .week: Decimal(value)
-        case .month: Decimal(value) * 52 / 12
-        case .year: Decimal(value) * 52
+        let months: Decimal = switch unit {
+        case .day: Decimal(value) * 12 / 365
+        case .week: Decimal(value) * 12 / 52
+        case .month: Decimal(value)
+        case .year: Decimal(value) * 12
         @unknown default: 1
         }
-        return price / weeks
+        return price / months
     }
 }

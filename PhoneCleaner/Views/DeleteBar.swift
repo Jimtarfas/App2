@@ -2,8 +2,8 @@ import Observation
 import StoreKit
 import SwiftUI
 
-/// What a cleaning screen presents after the delete button is tapped. Owned by the screen, not the bar,
-/// so the result still shows when the deletion empties the list and the bar goes away.
+/// What a screen presents after its action button is tapped. Owned by the screen, not the bar,
+/// so the result still shows when the action empties the list and the bar goes away.
 @Observable
 final class CleanFlow {
     var paywall: PaywallRequest?
@@ -12,7 +12,9 @@ final class CleanFlow {
 }
 
 struct CleanResult: Identifiable {
+    enum Kind { case deleted, converted }
     let id = UUID()
+    let kind: Kind
     let items: Int
     let bytes: Int64
 }
@@ -28,7 +30,7 @@ private struct CleanFlowPresenter: ViewModifier {
             .sheet(item: $flow.result) { result in
                 CleanResultView(result: result)
             }
-            .alert("Couldn't delete", isPresented: Binding(get: { flow.error != nil }, set: { if !$0 { flow.error = nil } }),
+            .alert("Something went wrong", isPresented: Binding(get: { flow.error != nil }, set: { if !$0 { flow.error = nil } }),
                    presenting: flow.error) { _ in
                 Button("OK") {}
             } message: { message in
@@ -41,24 +43,38 @@ extension View {
     func cleanFlow(_ flow: CleanFlow) -> some View { modifier(CleanFlowPresenter(flow: flow)) }
 }
 
-/// The bottom bar on every cleaning screen. Checks the free plan, then asks Photos to delete.
+/// The bottom bar on every list. Checks the free plan, then deletes (or converts Live Photos) through Photos.
 struct DeleteBar: View {
+    enum Action { case delete, convertToStills }
+
     let items: [MediaItem]
     let flow: CleanFlow
-    var onDeleted: () -> Void = {}
+    var action: Action = .delete
+    var onDone: () -> Void = {}
 
     @Environment(Cleaner.self) private var cleaner
     @Environment(Store.self) private var store
-    @State private var deleting = false
+    @State private var working = false
+
+    private var title: String {
+        if items.isEmpty { return action == .delete ? "Select items to delete" : "Select Live Photos to convert" }
+        return action == .delete
+            ? "Delete \(items.count) · \(items.totalBytes.formattedBytes)"
+            : "Convert \(items.count) · Save \(items.totalBytes.formattedBytes)"
+    }
 
     var body: some View {
         VStack(spacing: 8) {
             Button {
-                Task { await delete() }
+                Task { await run() }
             } label: {
                 HStack {
-                    if deleting { ProgressView().tint(.white) } else { Image(systemName: "trash") }
-                    Text(items.isEmpty ? "Select items to delete" : "Delete \(items.count) · \(items.totalBytes.formattedBytes)")
+                    if working {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: action == .delete ? "trash" : "livephoto.slash")
+                    }
+                    Text(title)
                 }
                 .font(.headline)
                 .frame(maxWidth: .infinity)
@@ -66,11 +82,11 @@ struct DeleteBar: View {
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.roundedRectangle(radius: 14))
-            .tint(Theme.delete)
-            .disabled(items.isEmpty || deleting)
+            .tint(action == .delete ? Theme.delete : .accentColor)
+            .disabled(items.isEmpty || working)
 
             if store.entitlementsLoaded && !store.isPremium {
-                Text("Free plan: \(cleaner.freeDeletesLeft) of \(Cleaner.freeDeletesPerDay) deletions left today")
+                Text("Free plan: \(cleaner.freeActionsLeft) of \(Cleaner.freeActionsPerDay) left today")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -81,21 +97,30 @@ struct DeleteBar: View {
         .background(.bar)
     }
 
-    private func delete() async {
+    private func run() async {
         let premium = store.isPremium
         if !premium && !cleaner.freePlanAllows(items.count) {
-            flow.paywall = PaywallRequest(reason: cleaner.freeDeletesLeft == 0
-                ? "You've used today's \(Cleaner.freeDeletesPerDay) free deletions. They reset tomorrow, or go Premium to delete without limits."
-                : "The free plan has \(cleaner.freeDeletesLeft) deletions left today. Go Premium to delete all \(items.count) at once.")
+            let left = cleaner.freeActionsLeft
+            flow.paywall = PaywallRequest(reason: left == 0
+                ? "You've used today's \(Cleaner.freeActionsPerDay) free deletions and conversions. They reset tomorrow, or go Premium for no daily limit."
+                : "The free plan has \(left) left today. Go Premium to do all \(items.count) at once.")
             return
         }
-        deleting = true
-        defer { deleting = false }
+        working = true
+        defer { working = false }
         let batch = items
         do {
-            if let bytes = try await cleaner.delete(batch, countsAgainstFreePlan: !premium) {
-                onDeleted()
-                flow.result = CleanResult(items: batch.count, bytes: bytes)
+            switch action {
+            case .delete:
+                if let bytes = try await cleaner.delete(batch, countsAgainstFreePlan: !premium) {
+                    onDone()
+                    flow.result = CleanResult(kind: .deleted, items: batch.count, bytes: bytes)
+                }
+            case .convertToStills:
+                if let bytes = try await cleaner.convertToStills(batch, countsAgainstFreePlan: !premium) {
+                    onDone()
+                    flow.result = CleanResult(kind: .converted, items: batch.count, bytes: bytes)
+                }
             }
         } catch {
             flow.error = error.localizedDescription
@@ -103,7 +128,7 @@ struct DeleteBar: View {
     }
 }
 
-/// Shown after a successful deletion.
+/// Shown after a successful deletion or conversion.
 struct CleanResultView: View {
     let result: CleanResult
 
@@ -123,17 +148,21 @@ struct CleanResultView: View {
                 .opacity(appeared ? 1 : 0)
             Text(result.bytes.formattedBytes)
                 .font(.system(size: 52, weight: .heavy, design: .rounded))
-            Text("of photo and video storage freed")
+            Text(result.kind == .deleted ? "of storage freed" : "saved by turning Live Photos into stills")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Text("\(result.items) \(result.items == 1 ? "item" : "items") moved to Recently Deleted")
+            Text(result.kind == .deleted
+                 ? "\(result.items) \(result.items == 1 ? "item" : "items") moved to Recently Deleted"
+                 : "\(result.items) \(result.items == 1 ? "photo" : "photos") kept as stills")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 10) {
-                Label("Total freed with Phone Cleaner: \(cleaner.freedBytes.formattedBytes)", systemImage: "sparkles")
+                Label("Total freed with Shotfile: \(cleaner.freedBytes.formattedBytes)", systemImage: "sparkles")
                     .font(.subheadline.weight(.semibold))
-                Label("Photos keeps deleted items in Recently Deleted for 30 days. Empty it in the Photos app to get the space back right away.",
+                Label(result.kind == .deleted
+                      ? "Photos keeps deleted items in Recently Deleted for 30 days. Empty it in the Photos app to get the space back right away."
+                      : "The Live Photos went to Recently Deleted, so you can still get them back for 30 days. Empty it in the Photos app to get the space back right away.",
                       systemImage: "info.circle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

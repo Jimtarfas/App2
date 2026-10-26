@@ -26,12 +26,12 @@ final class KeptPhotos {
 
 struct SwipeView: View {
     enum Order: String, CaseIterable, Identifiable {
-        case newest = "Newest", oldest = "Oldest", random = "Random"
+        case screenshots = "Screenshots", newest = "Newest", oldest = "Oldest", random = "Random"
         var id: Self { self }
     }
 
     @Environment(Cleaner.self) private var cleaner
-    @AppStorage("swipeOrder") private var order = Order.newest
+    @AppStorage("swipeOrder") private var order = Order.screenshots
     @State private var queue: [PHAsset] = []
     @State private var marked: [MediaItem] = []
     @State private var history: [(asset: PHAsset, deleted: Bool)] = []
@@ -96,7 +96,7 @@ struct SwipeView: View {
         }
         .padding()
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Swipe to Clean")
+        .navigationTitle("Swipe Review")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Button("Review (\(marked.count))") { showReview = true }
@@ -113,7 +113,7 @@ struct SwipeView: View {
     }
 
     private func card(for asset: PHAsset) -> some View {
-        AssetImage(asset: asset, side: 700)
+        AssetImage(asset: asset, side: 700, fit: asset.mediaSubtypes.contains(.photoScreenshot))
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .overlay(alignment: .bottomLeading) {
                 if asset.mediaType == .video {
@@ -217,8 +217,9 @@ struct SwipeView: View {
         queue = await Task.detached(priority: .userInitiated) {
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: order == .oldest)]
-            options.predicate = NSPredicate(format: "mediaType == %d OR mediaType == %d",
-                                            PHAssetMediaType.image.rawValue, PHAssetMediaType.video.rawValue)
+            options.predicate = order == .screenshots
+                ? NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
+                : NSPredicate(format: "mediaType == %d OR mediaType == %d", PHAssetMediaType.image.rawValue, PHAssetMediaType.video.rawValue)
             var assets: [PHAsset] = []
             PHAsset.fetchAssets(with: options).enumerateObjects { asset, _, stop in
                 guard !skip.contains(asset.localIdentifier) else { return }

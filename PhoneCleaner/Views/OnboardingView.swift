@@ -6,12 +6,12 @@ struct OnboardingView: View {
     @State private var page = 0
 
     private let pages: [(symbol: String, title: String, text: String)] = [
-        ("square.on.square", "Find duplicate & similar photos",
-         "Phone Cleaner groups copies and near-identical shots so you can keep the best one and delete the rest."),
-        ("hand.draw", "Swipe to keep or delete",
-         "Go through your photos one at a time. Swipe left to delete, swipe right to keep."),
-        ("internaldrive", "Free up photo storage",
-         "Spot large videos and old screenshots, and see exactly how much space you've cleared."),
+        ("text.viewfinder", "Find any screenshot by its text",
+         "Shotfile reads the words in your screenshots on your iPhone, so you can search them like notes."),
+        ("square.grid.2x2", "Sorted for you",
+         "Codes, tickets, receipts, chats, directions and more, each in its own place."),
+        ("clock.badge.exclamationmark", "Clear what's out of date",
+         "Spot old one-time codes and tickets for dates that have passed, and delete them in one go."),
     ]
 
     var body: some View {
@@ -79,11 +79,11 @@ struct PermissionView: View {
                 .foregroundStyle(.white)
                 .frame(width: 128, height: 128)
                 .background(Theme.gradient, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-            Text("Let Phone Cleaner see your photos")
+            Text("Let Shotfile read your screenshots")
                 .font(.rounded(.title2))
                 .multilineTextAlignment(.center)
             VStack(alignment: .leading, spacing: 16) {
-                point("iphone", "The scan runs on your iPhone. Your photos are never uploaded.")
+                point("iphone", "Text is read on your iPhone. Your screenshots and photos are never uploaded.")
                 point("hand.tap", "Nothing is deleted until you choose it and confirm.")
                 point("arrow.uturn.backward", "Deleted items stay in Recently Deleted for 30 days.")
             }
@@ -121,7 +121,7 @@ struct AccessDeniedView: View {
         ContentUnavailableView {
             Label("Photo access is off", systemImage: "photo.badge.exclamationmark")
         } description: {
-            Text("Phone Cleaner needs access to your photo library to find duplicates, screenshots and large videos. You can turn it on in Settings.")
+            Text("Shotfile needs access to your photo library to read and sort your screenshots. You can turn it on in Settings.")
         } actions: {
             Button("Open Settings") { openURL(Links.settings) }
                 .buttonStyle(.borderedProminent)

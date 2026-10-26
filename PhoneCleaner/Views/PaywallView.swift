@@ -70,7 +70,7 @@ struct PaywallView: View {
                 .foregroundStyle(.white)
                 .frame(width: 84, height: 84)
                 .background(Theme.gradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            Text("Phone Cleaner Premium")
+            Text("Shotfile Premium")
                 .font(.rounded(.title))
                 .multilineTextAlignment(.center)
             if let reason {
@@ -84,10 +84,10 @@ struct PaywallView: View {
 
     private var features: some View {
         VStack(alignment: .leading, spacing: 14) {
-            feature("infinity", "Unlimited deletions", "The free plan deletes up to \(Cleaner.freeDeletesPerDay) items a day.")
-            feature("square.on.square", "Clear every duplicate at once", "Delete whole sets of duplicates and similar shots in one go.")
-            feature("film.stack", "Large videos and screenshots", "Free up photo and video storage in bulk.")
-            feature("lock.shield", "Private by design", "Your photos are analyzed on your iPhone and never uploaded.")
+            feature("infinity", "No daily limit", "The free plan deletes or converts up to \(Cleaner.freeActionsPerDay) items a day.")
+            feature("clock.badge.exclamationmark", "Clear out-of-date screenshots at once", "Old one-time codes and past tickets, gone in one go.")
+            feature("livephoto.slash", "Turn Live Photos into stills", "Keep every picture and drop the motion that takes up space.")
+            feature("lock.shield", "Private by design", "Text is read on your iPhone. Nothing is uploaded.")
         }
         .card()
     }
@@ -124,7 +124,7 @@ struct PaywallView: View {
     private var plans: some View {
         VStack(spacing: 12) {
             if let yearly = store.yearly { planCard(yearly) }
-            if let weekly = store.weekly { planCard(weekly) }
+            if let monthly = store.monthly { planCard(monthly) }
         }
     }
 
@@ -140,7 +140,7 @@ struct PaywallView: View {
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text(product.id == Store.yearlyID ? "Yearly" : "Weekly")
+                        Text(product.id == Store.yearlyID ? "Yearly" : "Monthly")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                         if let savings = savings(for: product) {
@@ -159,8 +159,8 @@ struct PaywallView: View {
                             .font(.footnote)
                             .foregroundStyle(.primary)
                     }
-                    if product.id == Store.yearlyID, let perWeek = product.weeklyEquivalent {
-                        Text("Works out to \(perWeek.formatted(product.priceFormatStyle)) per week")
+                    if product.id == Store.yearlyID, let perMonth = product.monthlyEquivalent {
+                        Text("Works out to \(perMonth.formatted(product.priceFormatStyle)) per month")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -179,11 +179,11 @@ struct PaywallView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    /// Percentage saved by the yearly plan compared with paying weekly for a year.
+    /// Percentage saved by the yearly plan compared with paying monthly for a year.
     private func savings(for product: Product) -> Int? {
-        guard product.id == Store.yearlyID, let weekly = store.weekly,
-              let yearlyWeekly = product.weeklyEquivalent, let weeklyWeekly = weekly.weeklyEquivalent, weeklyWeekly > 0 else { return nil }
-        let ratio = NSDecimalNumber(decimal: 1 - yearlyWeekly / weeklyWeekly).doubleValue
+        guard product.id == Store.yearlyID, let monthly = store.monthly,
+              let yearlyPerMonth = product.monthlyEquivalent, let monthlyPerMonth = monthly.monthlyEquivalent, monthlyPerMonth > 0 else { return nil }
+        let ratio = NSDecimalNumber(decimal: 1 - yearlyPerMonth / monthlyPerMonth).doubleValue
         let percent = Int((ratio * 100).rounded(.down))
         return percent >= 10 ? percent : nil
     }
@@ -258,7 +258,7 @@ struct PaywallView: View {
             if try await store.restore() {
                 dismiss()
             } else {
-                message = "No active Phone Cleaner subscription was found for this Apple Account."
+                message = "No active Shotfile subscription was found for this Apple Account."
             }
         } catch {
             message = "Couldn't restore purchases. \(error.localizedDescription)"

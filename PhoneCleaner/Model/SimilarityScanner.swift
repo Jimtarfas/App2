@@ -15,42 +15,6 @@ struct Fingerprint: Codable {
     }
 }
 
-/// Fingerprints survive between launches so a rescan only analyzes new or edited photos.
-final class FingerprintCache: @unchecked Sendable {
-    private let url: URL
-    private let lock = NSLock()
-    private var entries: [String: Fingerprint]
-
-    init() {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        url = caches.appendingPathComponent("fingerprints-v2.plist")
-        if let data = try? Data(contentsOf: url),
-           let decoded = try? PropertyListDecoder().decode([String: Fingerprint].self, from: data) {
-            entries = decoded
-        } else {
-            entries = [:]
-        }
-    }
-
-    subscript(id: String) -> Fingerprint? {
-        get { lock.withLock { entries[id] } }
-        set { lock.withLock { entries[id] = newValue } }
-    }
-
-    /// Writes the cache, dropping photos that are no longer in the library.
-    func save(keeping ids: Set<String>) {
-        let snapshot = lock.withLock {
-            entries = entries.filter { ids.contains($0.key) }
-            return entries
-        }
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .binary
-        if let data = try? encoder.encode(snapshot) {
-            try? data.write(to: url, options: .atomic)
-        }
-    }
-}
-
 enum SimilarityScanner {
     private static let log = Logger(subsystem: "com.cleanupphotos.app", category: "scan")
 
@@ -67,7 +31,7 @@ enum SimilarityScanner {
     static let similarTimeWindow: TimeInterval = 15 * 60
 
     /// Fingerprints every photo, reusing cached results. Photos that are only in iCloud and have no local preview are skipped.
-    static func fingerprints(for assets: [PHAsset], cache: FingerprintCache,
+    static func fingerprints(for assets: [PHAsset], cache: PersistentCache<Fingerprint>,
                              progress: @escaping @Sendable (Int) -> Void) async -> [String: Fingerprint] {
         var results: [String: Fingerprint] = [:]
         results.reserveCapacity(assets.count)

@@ -24,7 +24,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Go Premium", systemImage: "crown.fill")
                     }
-                    LabeledContent("Free deletions left today", value: "\(cleaner.freeDeletesLeft) of \(Cleaner.freeDeletesPerDay)")
+                    LabeledContent("Free actions left today", value: "\(cleaner.freeActionsLeft) of \(Cleaner.freeActionsPerDay)")
                 }
                 Button {
                     Task { await restore() }
@@ -61,7 +61,7 @@ struct SettingsView: View {
                 Button("Privacy Policy") { openURL(Links.privacy) }
                 Button("Terms of Use") { openURL(Links.terms) }
                 Button("Contact Support") { openURL(Links.support) }
-                Button("Rate Phone Cleaner") { openURL(Links.review) }
+                Button("Rate Shotfile") { openURL(Links.review) }
                 LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
             }
         }
@@ -86,7 +86,7 @@ struct SettingsView: View {
         do {
             message = try await store.restore()
                 ? "Your Premium subscription has been restored."
-                : "No active Phone Cleaner subscription was found for this Apple Account."
+                : "No active Shotfile subscription was found for this Apple Account."
         } catch {
             message = "Couldn't restore purchases. \(error.localizedDescription)"
         }
