@@ -6,13 +6,13 @@ Review every answer before sending: they have to be true for you. Lines marked *
 
 Hello App Review team,
 
-Thank you for the feedback. We agreed the first version was too close to existing cleaner apps, so we did not argue the point. We rebuilt the app around a different purpose and are resubmitting it as **Shotfile: Screenshot Organizer** (build 3). These are the main changes since the rejected build:
+Thank you for the feedback. We agreed the first version was too close to existing cleaner apps, so we did not argue the point. We rebuilt the app around a different purpose and are resubmitting it as **Shotfile: Screenshot Organizer** (build 4). These are the main changes since the rejected build:
 
 - **New core feature, reading screenshots on the device.** Shotfile uses Vision text recognition to read every screenshot, sorts it by what it contains (codes and logins, tickets and passes, receipts, chats, directions, posts, notes, pictures), and makes the library searchable by text.
 - **Out-of-date detection.** It reads dates written in tickets and passes, and finds one-time codes, so it can flag screenshots that are no longer useful: codes older than two days, and tickets whose dates have all passed. Upcoming tickets are left alone.
 - **Text tools.** You can view, select, copy and share the text from any screenshot.
 - **Live Photo to still conversion.** This keeps the picture (including edits), date, location, favorite flag and album membership, and removes only the video part. The change is atomic: the still is created and the original deleted in a single Photos change.
-- **New name, icon and listing.** All "phone cleaner" positioning and keywords are gone. The weekly subscription was replaced by a monthly plan.
+- **New name, icon and listing.** All "phone cleaner" positioning and keywords are gone. Subscriptions moved to a new "Shotfile Premium" group with a monthly and a yearly plan; the old weekly plan is no longer offered.
 
 Answers to your questions:
 
